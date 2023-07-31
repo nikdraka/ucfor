@@ -1,4 +1,4 @@
-Package: uncertain
+Package: ucfor
 Type: Package
 Title: Implement smoothing parameter shrinkage in exponential smoothing models
 Version: 0.1.0
