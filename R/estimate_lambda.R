@@ -7,7 +7,7 @@
 #'
 #' @return Function returns the following variables:
 #' \itemize{
-#' \item{\code{lambda_{min}} - the optimal hyper-parameter}
+#' \item{\code{lambda_{min}} - the optimal hyper-parameter of ETS}
 #' \item{\code{model} - the model}
 #' \item{\code{loss} - the loss function, either "RIDGE" or "LASSO"}
 #' \item{\code{data} - the training set}
