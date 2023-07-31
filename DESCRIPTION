@@ -1,0 +1,21 @@
+Package: uncertain
+Type: Package
+Title: Implement smoothing parameter shrinkage in exponential smoothing models
+Version: 0.1.0
+Date: 2023-07-30
+Authors$R: person("Kandrika", "Pritularga", email = "kandrika.fp@gmail.com", role = c("aut", "cre"),
+                  comment="Lecturer at Centre for Marketing Analytics and Forecasting, Lancaster University, UK")
+Author: Kandrika Pritularga [aut,cre]
+Maintainer: Kandrika Pritularga <kandrika.fp@gmail.com>
+Language: en-GB
+Description: This package collects functions to estimate a hyperparameter for the exponential smoothing model with shrinkage estimators.
+License: GPL (>=2)
+Depends:
+    R (>= 3.0.2)
+Imports:
+    greybox (>= 1.0.8),
+    smooth (>= 3.2.0),
+    nloptr
+Encoding: UTF-8
+RoxygenNote: 7.2.3
+Roxygen: list(old_usage = TRUE)
