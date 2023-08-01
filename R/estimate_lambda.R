@@ -1,9 +1,9 @@
 #' Estimate a hyper-parameter in the shrinkage estimators for exponential smoothing models
 #'
 #' @param object An adam object
-#' @param x0 An initialisation for lambda. Should be equal or more than 0 and less than 1
-#' @param loss A string of the loss function, either "RIDGE" or "LASSO". The default is "RIDGE"
-#' @param origins A number of forecast origins. The default is the frequency of the time series
+#' @param lambda An initialisation for lambda. Should be between zero and one.
+#' @param origins A number of forecast origins. The default is the frequency of the time series.
+#' @param ... Other parameters passed to adam.
 #'
 #' @return Function returns the following variables:
 #' \itemize{
@@ -24,11 +24,11 @@
 #' library(smooth)
 #' library(greybox)
 #'
-#' # Estimate an exponential smoothing model first
-#' fit <- adam(AirPassengers, loss = "MSE")
+#' # Estimate an exponential smoothing model with RIDGE first
+#' fit <- adam(AirPassengers, loss = "RIDGE", lambda = 0.5)
 #'
 #' # Implement estimate_lambda() to find the optimal hyper-parameter
-#' choosingLambda <- estimate_lambda(fit, x0 = 0.5, loss = "RIDGE", origins = 5)
+#' choosingLambda <- estimate_lambda(fit, lambda = 0.5, origins = 5)
 #'
 #' # Inspect the result
 #' choosingLambda
@@ -46,19 +46,19 @@
 #' @importFrom stats frequency
 #'
 #' @export estimate_lambda
-estimate_lambda <- function(object, x0 = 0.1, loss = c("RIDGE", "LASSO"), origins = 5) {
+estimate_lambda <- function(object, lambda = 0.1, origins = 5, ...) {
+  # I removed loss because it makes sense to align it with the loss used in the initial object.
+  # I renamed x0 to lambda for consistency with adam()
 
   # Input checking
-  if (smooth::is.adam(object)) {
-    object <- object
-  } else {
+  if (!smooth::is.adam(object)) {
     stop("An adam object is needed to run this function. Use adam() as the object!")
   }
 
-  if (x0<0 || x0 >= 1 || !is.numeric(x0)) {
-    x0 <- 0.1
+  if (lambda<0 || lambda >= 1 || !is.numeric(lambda)) {
+    lambda <- 0.1
   } else {
-    x0 <- x0[1]
+    lambda <- lambda[1]
   }
 
   if (any(loss != c("RIDGE", "LASSO"))) {
@@ -74,17 +74,12 @@ estimate_lambda <- function(object, x0 = 0.1, loss = c("RIDGE", "LASSO"), origin
   }
 
   # collect arguments from 'object'
-  modelNames <- substr(object$model, 5, nchar(object$model)-1)
+  modelNames <- modelType(object)
   data <- object$data
 
   # A function to calculate error
   roLambda <- function(data = data, model = modelNames, loss = loss, lambda = x0, origins = origins) {
-
-    model <- model
-    loss <- loss
-    lambda <- lambda
-    data <- data
-    origins <- origins
+# The stuff that was here is not needed, you already define model, loss etc in the call of the function
 
     stringLambda <- paste0("lambda=",lambda)
     stringModel <- paste0("model=","'",as.character(model),"'")
