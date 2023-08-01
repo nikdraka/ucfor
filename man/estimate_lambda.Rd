@@ -4,17 +4,24 @@
 \alias{estimate_lambda}
 \title{Estimate a hyper-parameter in the shrinkage estimators for exponential smoothing models}
 \usage{
-estimate_lambda(object, x0 = 0.1, loss = c("RIDGE", "LASSO"),
-  origins = 5)
+estimate_lambda(object, lambda = 0.1, origins = 5, ci = FALSE,
+  co = TRUE, ...)
 }
 \arguments{
 \item{object}{An adam object}
 
-\item{x0}{An initialisation for lambda. Should be equal or more than 0 and less than 1}
+\item{lambda}{An initialisation for lambda. Should be between zero and one.}
 
-\item{loss}{A string of the loss function, either "RIDGE" or "LASSO". The default is "RIDGE"}
+\item{origins}{A number of forecast origins. The default is the frequency of the time series.}
 
-\item{origins}{A number of forecast origins. The default is the frequency of the time series}
+\item{ci}{The parameter defines if the in-sample window size should be constant. If TRUE,
+then with each origin one observation is added at the end of series and another one
+is removed from the beginning.}
+
+\item{co}{The parameter defines whether the holdout sample window size should be constant.
+If TRUE, the rolling origin will stop when less than h observations are left in the holdout.}
+
+\item{...}{Other parameters passed to adam.}
 }
 \value{
 Function returns the following variables:
@@ -31,20 +38,19 @@ Estimate a hyper-parameter in the shrinkage estimators for exponential smoothing
 \examples{
 
 library(smooth)
-library(greybox)
 
-# Estimate an exponential smoothing model first
-fit <- adam(AirPassengers, loss = "MSE")
+# Estimate an exponential smoothing model with RIDGE
+fit <- adam(AirPassengers, model="MAM", loss = "RIDGE", lambda = 0.5)
 
 # Implement estimate_lambda() to find the optimal hyper-parameter
-choosingLambda <- estimate_lambda(fit, x0 = 0.5, loss = "RIDGE", origins = 5)
+choosingLambda <- estimate_lambda(fit, lambda = 0.5, origins = 5)
 
 # Inspect the result
 choosingLambda
 
 # Re-estimate adam() with the result of estimate_lambda()
-fitShrinkage <- adam(choosingLambda$data, model = choosingLambda$model,
-                     loss = choosingLambda$loss,
+fitShrinkage <- adam(AirPassengers, model = modelType(choosingLambda$model),
+                     loss = choosingLambda$model$loss,
                      lambda = choosingLambda$lambda_min)
 
 # Inspect the effect of smoothing parameter shrinkage
@@ -56,6 +62,9 @@ fitShrinkage$persistence
 \itemize{
 \item Pritularga, K., Svetunkov, I., Kourentzes, N., (2022) Shrinkage estimator for exponential smoothing models. International Journal of Forecasting, XX, pp. XX.
 }
+}
+\seealso{
+\code{\link[smooth]{adam}, \link[greybox]{ro}}
 }
 \author{
 Kandrika Pritularga
