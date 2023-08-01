@@ -13,9 +13,7 @@
 #' @return Function returns the following variables:
 #' \itemize{
 #' \item{\code{lambda_{min}} - the optimal hyper-parameter of ETS}
-#' \item{\code{model} - the model}
-#' \item{\code{loss} - the loss function, either "RIDGE" or "LASSO"}
-#' \item{\code{data} - the training set}
+#' \item{\code{model} - the refitted model using the optimised lambda}
 #' }
 #'
 #' @seealso \code{\link[smooth]{adam}, \link[greybox]{ro}}
@@ -48,7 +46,7 @@
 #' fit$persistence
 #' fitShrinkage$persistence
 #'
-#' @importFrom smooth is.adam modelType
+#' @importFrom smooth adam is.adam modelType
 #' @importFrom greybox ro
 #' @importFrom stats frequency
 #' @importFrom nloptr nloptr

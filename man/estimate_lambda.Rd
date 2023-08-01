@@ -27,9 +27,7 @@ If TRUE, the rolling origin will stop when less than h observations are left in 
 Function returns the following variables:
 \itemize{
 \item{\code{lambda_{min}} - the optimal hyper-parameter of ETS}
-\item{\code{model} - the model}
-\item{\code{loss} - the loss function, either "RIDGE" or "LASSO"}
-\item{\code{data} - the training set}
+\item{\code{model} - the refitted model using the optimised lambda}
 }
 }
 \description{
