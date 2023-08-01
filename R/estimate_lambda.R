@@ -115,9 +115,11 @@ estimate_lambda <- function(object, lambda = 0.1, origins = 5,
   regCF <- nloptr(lambda, roLambda, lb = lb, ub = ub, opts = opts,
   								data=data, model = modelName, loss = loss, origins = origins,)
 
+  objectUpdated <- adam(data, model = modelName, loss=loss, lambda = regCF$solution)
+
   # loss and data are now saved in model (which is now the provided object)
   listReturned <- list(lambda_min = regCF$solution,
-                       model = object)
+                       model = objectUpdated)
 
   return(structure(listReturned,class="shrink"))
 
