@@ -54,73 +54,107 @@
 #'
 #' @export estimate_lambda
 estimate_lambda <- function(object, lambda = 0.1, origins = 5,
-                            ci=FALSE, co=TRUE, ...) {
-  #!!! I removed loss because it makes sense to align it with the loss used in the initial object.
-  #!!! I renamed x0 to lambda for consistency with adam()
+														ci=FALSE, co=TRUE, searchMethod=c("nelder-mead","grid"),
+														lambdaseq=NULL, ...) {
 
-  # Input checking
-	#!!! Also, no need to do smooth::function - use @importFrom to use specific function, drop ::
-  if (!is.adam(object)) {
-    stop("An adam object is needed to run this function. Use adam() as the object!")
-  }
+	# Input checking
+	if (!is.adam(object)) {
+		stop("An adam object is needed to run this function. Use adam() as the object!")
+	}
 
-  if (lambda<0 || lambda >= 1 || !is.numeric(lambda)) {
-    warning("The initial lambda is not between 0 and 1. Setting it to 0.1.")
-    lambda <- 0.1
-  }
+	# checking which search algorithm we would use, grid search or nelder-mead
+	if (searchMethod=="nelder-mead") {
+		if (lambda<0 || lambda >= 1 || !is.numeric(lambda)) {
+			warning("The initial lambda is not between 0 and 1. Setting it to 0.1.")
+			lambda <- 0.1
+		}
+	} else {
+		lambda <- lambda
+	}
 
-  # Grab loss from adam()
-  loss <- object$loss
-  if(all(loss!=c("LASSO","RIDGE"))){
-    stop("adam() needs to be estimated with LASSO/RIDGE in order for this function to work")
-  }
+	# setting the default of the search method
+	# if a user does have the capacity to do parallel computing, they would use
+	# numerical optimisation
+	if (is.null(searchMethod)){
+		searchMethod <- "nelder-mead"
+	}
 
-  if (origins < 0 || !is.numeric(origins) || is.null(origins)) {
-    warning("The number of origins is not a positive number. Setting it to 5.")
-    #!!! Why frequency?
-    # origins <- stats::frequency(object$data)
-    origins <- 5
-  }
+	# Grab loss from adam()
+	loss <- object$loss
+	if(all(loss!=c("LASSO","RIDGE"))){
+		stop("adam() needs to be estimated with LASSO/RIDGE in order for this function to work")
+	}
 
-  # collect arguments from 'object'
-  #!!! modelName - singular, right?
-  modelName <- modelType(object)
-  data <- object$data
+	if (origins < 0 || !is.numeric(origins) || is.null(origins)) {
+		warning("The number of origins is not a positive number. Setting it to 5.")
+		origins <- 5
+	}
 
-  # A function to calculate error
-  roLambda <- function(lambda = lambda, data = data, model = modelName, loss = loss, origins = origins) {
-#!!! The stuff that was here is not needed, you already define model, loss etc in the call of the function
+	# collect arguments from 'object'
+	modelName <- modelType(object)
+	data <- object$data
 
-    stringLambda <- paste0("lambda=",lambda)
-    stringModel <- paste0("model=","'",as.character(model),"'")
-    stringLoss <- paste0("loss=","'",as.character(loss), "'")
+	# A function to calculate error
+	roLambda <- function(lambda = lambda, data = data, model = modelName, loss = loss, origins = origins) {
+		#!!! The stuff that was here is not needed, you already define model, loss etc in the call of the function
 
-    ourCall <- paste("adam(data", stringModel, stringLoss, stringLambda, "h = 1,holdout=TRUE,...)", sep=",")
-    ro.fit <- ro(data, h = 1, origins = origins, call=ourCall, value="forecast")
+		stringLambda <- paste0("lambda=",lambda)
+		stringModel <- paste0("model=","'",as.character(model),"'")
+		stringLoss <- paste0("loss=","'",as.character(loss), "'")
 
-    ro.error <- ro.fit$holdout - ro.fit$forecast
-    yDenominator <- mean(abs(diff(ro.fit$actuals)))
-    scaled.ro.error <- ro.error/yDenominator
+		ourCall <- paste("adam(data", stringModel, stringLoss, stringLambda, "h = 1,holdout=TRUE,...)", sep=",")
+		ro.fit <- ro(data, h = 1, origins = origins, call=ourCall, value="forecast")
 
-    return(mean((scaled.ro.error)^2))
+		ro.error <- ro.fit$holdout - ro.fit$forecast
+		yDenominator <- mean(abs(diff(ro.fit$actuals)))
+		scaled.ro.error <- ro.error/yDenominator
 
-  }
+		return(mean((scaled.ro.error)^2))
 
-  # optimisation
-  opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "xtol_rel" = 1e-08, "maxeval" = 1000)
-  lb <- 0
-  ub <- 0.9999
+	}
 
-  regCF <- nloptr(lambda, roLambda, lb = lb, ub = ub, opts = opts,
-  								data=data, model = modelName, loss = loss, origins = origins,)
+	if (searchMethod=="grid") {
+		# grid search
+		# this should be accompanied with foreach, working for macOS/ Linux for now
+		cores <- detectCores()
+		registerDoMC(cores)
 
-  objectUpdated <- adam(data, model = modelName, loss=loss, lambda = regCF$solution)
+		if (searchMethod == "grid" && is.null(lambdaseq)) {
+			warning("lambdaseq is set by default, between 0 and 1 with an increment of 0.01!")
+			lambdaseq <- seq(0,1,0.01)
+		}
 
-  # loss and data are now saved in model (which is now the provided object)
-  listReturned <- list(lambda_min = regCF$solution,
-                       model = objectUpdated)
+		# doing the grid search for each lambda, and find a lambda that results in the lowest RMSSE
+		regCF <- foreach(i=lambdaseq, .export = c("data","modelName","origins","loss","lambdaseq"),
+										 .combine = "c") %dopar% {
+										 	res <- roLambda(lambda=i, data=data, model=modelName, loss=loss, origins=origins)
+										 	return(res)
+										 }
+		# find the lambda that leads to the minimum RMSSE
+		min_regCF <- lambdaseq[which.min(regCF)]
+		objectUpdated <- adam(data, model = modelName, loss=loss, lambda = min_regCF)
 
-  return(structure(listReturned,class="shrink"))
+		# loss and data are now saved in model (which is now the provided object)
+		listReturned <- list(lambda_min = min_regCF,
+												 model = objectUpdated)
+
+	} else if (searchMethod=="nelder-mead") {
+		# optimisation
+		opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "xtol_rel" = 1e-08, "maxeval" = 1000)
+		lb <- 0
+		ub <- 0.9999
+
+		regCF <- nloptr(lambda, roLambda, lb = lb, ub = ub, opts = opts,
+										data=data, model = modelName, loss = loss, origins = origins,)
+
+		objectUpdated <- adam(data, model = modelName, loss=loss, lambda = regCF$solution)
+
+		# loss and data are now saved in model (which is now the provided object)
+		listReturned <- list(lambda_min = regCF$solution,
+												 model = objectUpdated)
+	}
+
+	return(structure(listReturned,class="shrink"))
 
 }
 
