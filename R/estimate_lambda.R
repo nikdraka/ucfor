@@ -50,6 +50,7 @@
 #' @importFrom greybox ro
 #' @importFrom stats frequency
 #' @importFrom nloptr nloptr
+#' @importFrom doMC foreach
 #'
 #' @export estimate_lambda
 estimate_lambda <- function(object, lambda = 0.1, origins = 5,
